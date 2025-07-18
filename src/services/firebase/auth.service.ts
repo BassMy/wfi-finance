@@ -1,8 +1,12 @@
 // src/services/firebase/auth.service.ts
 import firebaseConfig from './config';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { User, LoginCredentials, RegisterCredentials, ApiResponse } from '../../types';
 import { FirestoreService } from './firestore.service';
+
+// Imports corrigés depuis les fichiers individuels
+import type { User } from '../../types/user.types';
+import type { LoginCredentials, RegisterCredentials } from '../../types/auth.types';
+import type { ApiResponse } from '../../types/common.types';
 
 export class AuthService {
   private static instance: AuthService;

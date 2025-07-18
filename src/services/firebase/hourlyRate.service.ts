@@ -2,13 +2,23 @@
 import { FirestoreService } from './firestore.service';
 import { BudgetService } from './budget.service';
 import firebaseConfig from './config';
-import { 
+
+// Imports individuels depuis les fichiers de types
+import type { 
   RealHourlyRate, 
-  ApiResponse,
-  Expense,
-  Subscription,
-  Budget
-} from '../../types';
+  ApiResponse, 
+  PaginationParams, 
+  DateRange,
+  ExpenseImpact,
+  SubscriptionImpact,
+  HourlyRateReport,
+  IndustryComparison,
+  HourlyRateOptimization
+} from '../../types/common.types';
+import type { Expense } from '../../types/expense.types';
+import type { Subscription } from '../../types/subscription.types';
+import type { Budget } from '../../types/budget.types';
+
 import { 
   calculateTheoreticalHourlyRate,
   calculateRealHourlyRate,
@@ -63,8 +73,9 @@ export class HourlyRateService {
 
       // Récupérer les dépenses du mois courant
       const expensesResult = await this.firestoreService.getUserExpenses(userId, {
-        page: 1,
         limit: 1000,
+        orderBy: 'createdAt',
+        orderDirection: 'desc',
       }, this.getCurrentMonthRange());
 
       if (!expensesResult.success) {
@@ -96,7 +107,7 @@ export class HourlyRateService {
       });
 
       // Calculer les dépenses mensuelles
-      const monthlyExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const monthlyExpenses = expenses.reduce((sum: number, expense: Expense) => sum + expense.amount, 0);
       const monthlySubscriptions = calculateMonthlySubscriptionCost(subscriptions);
 
       // Calculer le taux horaire réel
@@ -138,13 +149,7 @@ export class HourlyRateService {
   async calculateExpenseImpact(
     userId: string,
     amount: number
-  ): Promise<ApiResponse<{
-    workHoursRequired: number;
-    workDaysRequired: number;
-    theoreticalHourlyRate: number;
-    realHourlyRate: number;
-    efficiency: number;
-  }>> {
+  ): Promise<ApiResponse<ExpenseImpact>> {
     try {
       console.log('💸 Calculating expense impact for user:', userId, 'amount:', amount);
 
@@ -192,13 +197,7 @@ export class HourlyRateService {
     userId: string
   ): Promise<ApiResponse<Array<{
     subscription: Subscription;
-    impact: {
-      monthlyImpact: number;
-      yearlyImpact: number;
-      hoursPerMonth: number;
-      hoursPerYear: number;
-      costPerUse?: number;
-    };
+    impact: SubscriptionImpact;
   }>>> {
     try {
       console.log('💳 Calculating subscriptions impact for user:', userId);
@@ -226,7 +225,7 @@ export class HourlyRateService {
       const subscriptions = subscriptionsResult.data || [];
 
       // Calculer l'impact de chaque abonnement
-      const impacts = subscriptions.map(subscription => {
+      const impacts = subscriptions.map((subscription: Subscription) => {
         const impact = calculateSubscriptionImpact(subscription, hourlyRate);
         
         return {
@@ -259,33 +258,7 @@ export class HourlyRateService {
    */
   async generateHourlyRateReport(
     userId: string
-  ): Promise<ApiResponse<{
-    summary: RealHourlyRate;
-    breakdown: {
-      salaryBreakdown: {
-        annual: number;
-        monthly: number;
-        weekly: number;
-        daily: number;
-        hourly: number;
-      };
-      timeWorked: {
-        hoursPerDay: number;
-        daysPerWeek: number;
-        weeksPerYear: number;
-        totalHoursPerYear: number;
-      };
-      impactAnalysis: {
-        monthlyExpenses: number;
-        monthlySubscriptions: number;
-        totalMonthlyImpact: number;
-        yearlyImpact: number;
-        hoursLostPerMonth: number;
-        daysLostPerMonth: number;
-      };
-    };
-    recommendations: string[];
-  }>> {
+  ): Promise<ApiResponse<HourlyRateReport>> {
     try {
       console.log('📊 Generating hourly rate report for user:', userId);
 
@@ -382,13 +355,7 @@ export class HourlyRateService {
   async compareWithIndustryAverage(
     userId: string,
     industry?: string
-  ): Promise<ApiResponse<{
-    userRate: number;
-    industryAverage: number;
-    percentile: number;
-    comparison: 'above' | 'below' | 'average';
-    message: string;
-  }>> {
+  ): Promise<ApiResponse<IndustryComparison>> {
     try {
       console.log('📈 Comparing hourly rate with industry average for user:', userId);
 
@@ -456,17 +423,7 @@ export class HourlyRateService {
    */
   async calculateOptimization(
     userId: string
-  ): Promise<ApiResponse<{
-    currentEfficiency: number;
-    optimizedEfficiency: number;
-    potentialGain: number;
-    recommendations: Array<{
-      action: string;
-      impact: number;
-      difficulty: 'easy' | 'medium' | 'hard';
-      description: string;
-    }>;
-  }>> {
+  ): Promise<ApiResponse<HourlyRateOptimization>> {
     try {
       console.log('🎯 Calculating hourly rate optimization for user:', userId);
 

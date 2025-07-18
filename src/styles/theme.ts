@@ -26,7 +26,11 @@ export const isTinyScreen = width < 320;
 
 // Définition du type Theme
 export interface Theme {
+  isDark: any;
   colors: {
+    dangerLight: any;
+    successLight: any;
+    warningLight: any;
     primaryLight: any;
     overlay: any;
     purple: any;

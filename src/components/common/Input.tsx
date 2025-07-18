@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInputProps,
   ViewStyle,
+  TouchableOpacity,
 } from 'react-native';
 import { Theme, lightTheme } from '../../styles/theme';
 
@@ -16,6 +17,7 @@ interface InputProps extends TextInputProps {
   helperText?: string;
   leftIcon?: string;
   rightIcon?: string;
+  onRightIconPress?: () => void;
   theme?: Theme;
   containerStyle?: ViewStyle;
 }
@@ -26,6 +28,7 @@ export const Input: React.FC<InputProps> = ({
   helperText,
   leftIcon,
   rightIcon,
+  onRightIconPress,
   theme = lightTheme,
   containerStyle,
   style,
@@ -44,6 +47,26 @@ export const Input: React.FC<InputProps> = ({
   const handleBlur = (e: any) => {
     setIsFocused(false);
     onBlur?.(e);
+  };
+
+  const renderRightIcon = () => {
+    if (!rightIcon) return null;
+
+    if (onRightIconPress) {
+      return (
+        <TouchableOpacity
+          onPress={onRightIconPress}
+          style={styles.rightIconButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.rightIcon}>{rightIcon}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <Text style={styles.rightIcon}>{rightIcon}</Text>
+    );
   };
 
   return (
@@ -73,9 +96,7 @@ export const Input: React.FC<InputProps> = ({
           {...props}
         />
         
-        {rightIcon && (
-          <Text style={styles.rightIcon}>{rightIcon}</Text>
-        )}
+        {renderRightIcon()}
       </View>
       
       {error && (
@@ -140,9 +161,15 @@ const createInputStyles = (theme: Theme) =>
     },
     
     rightIcon: {
-      paddingRight: theme.spacing.medium,
       fontSize: theme.fontSizes.large,
       color: theme.colors.textSecondary,
+    },
+    
+    rightIconButton: {
+      paddingHorizontal: theme.spacing.medium,
+      paddingVertical: theme.spacing.small,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     
     errorText: {

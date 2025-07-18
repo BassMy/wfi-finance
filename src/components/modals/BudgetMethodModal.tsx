@@ -14,7 +14,7 @@ import {
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Theme } from '../../styles/theme';
-import { BudgetMethod } from '../../types';
+import { BudgetMethod } from '../../types/budget.types.ts';
 import { BUDGET_METHODS } from '../../utils/constants';
 import { formatPercentage } from '../../utils/formatting';
 

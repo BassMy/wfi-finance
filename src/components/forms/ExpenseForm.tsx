@@ -313,7 +313,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           title={submitText}
           onPress={handleSubmit}
           theme={theme}
-          style={[styles.actionButton, !showCancel ? styles.fullWidthButton : undefined]}
+          style={[
+            styles.actionButton,
+            ...(showCancel ? [] : [styles.fullWidthButton])
+          ]}
           loading={isSubmitting || loading}
           disabled={isSubmitting || loading || !formData.description.trim() || !formData.amount}
         />

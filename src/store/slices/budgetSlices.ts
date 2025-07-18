@@ -1,6 +1,6 @@
 // src/store/slices/budgetSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Budget, BudgetMethod, BudgetStats, LoadingState } from '../../types';
+import { Budget, BudgetMethod, BudgetStats } from '../../types/budget.types';
 import { FirestoreService } from '../../services/firebase/firestore.service';
 import { calculateBudgetAllocations, calculateBudgetStats } from '../../utils/calculations';
 import { BUDGET_METHODS } from '../../utils/constants';
@@ -8,13 +8,13 @@ import { BUDGET_METHODS } from '../../utils/constants';
 const firestoreService = FirestoreService.getInstance();
 
 // Actions asynchrones
-export const fetchBudget = createAsyncThunk(
+export const fetchBudget = createAsyncThunk<Budget | null, string>(
   'budget/fetchBudget',
   async (userId: string, { rejectWithValue }) => {
     try {
       const response = await firestoreService.getUserBudget(userId);
       if (response.success) {
-        return response.data;
+        return response.data || null;
       } else {
         return rejectWithValue(response.error || 'Erreur lors du chargement du budget');
       }
@@ -24,16 +24,16 @@ export const fetchBudget = createAsyncThunk(
   }
 );
 
-export const saveBudget = createAsyncThunk(
+export const saveBudget = createAsyncThunk<Budget, { 
+  userId: string; 
+  salary: number; 
+  method: BudgetMethod 
+}>(
   'budget/saveBudget',
   async ({ 
     userId, 
     salary, 
     method 
-  }: { 
-    userId: string; 
-    salary: number; 
-    method: BudgetMethod 
   }, { rejectWithValue }) => {
     try {
       const allocations = calculateBudgetAllocations(salary, method);
@@ -56,14 +56,14 @@ export const saveBudget = createAsyncThunk(
   }
 );
 
-export const updateBudgetMethod = createAsyncThunk(
+export const updateBudgetMethod = createAsyncThunk<Budget, { 
+  userId: string; 
+  method: BudgetMethod 
+}>(
   'budget/updateBudgetMethod',
   async ({ 
     userId, 
     method 
-  }: { 
-    userId: string; 
-    method: BudgetMethod 
   }, { getState, rejectWithValue }) => {
     try {
       const state = getState() as any;
@@ -93,14 +93,14 @@ export const updateBudgetMethod = createAsyncThunk(
   }
 );
 
-export const updateBudgetSalary = createAsyncThunk(
+export const updateBudgetSalary = createAsyncThunk<Budget, { 
+  userId: string; 
+  salary: number 
+}>(
   'budget/updateBudgetSalary',
   async ({ 
     userId, 
     salary 
-  }: { 
-    userId: string; 
-    salary: number 
   }, { getState, rejectWithValue }) => {
     try {
       const state = getState() as any;
@@ -130,7 +130,7 @@ export const updateBudgetSalary = createAsyncThunk(
   }
 );
 
-export const calculateCurrentStats = createAsyncThunk(
+export const calculateCurrentStats = createAsyncThunk<BudgetStats, void>(
   'budget/calculateCurrentStats',
   async (_, { getState, rejectWithValue }) => {
     try {
@@ -151,11 +151,13 @@ export const calculateCurrentStats = createAsyncThunk(
   }
 );
 
-interface BudgetState extends LoadingState {
+interface BudgetState {
   budget: Budget | null;
   stats: BudgetStats | null;
   availableMethods: BudgetMethod[];
   isInitialized: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const initialState: BudgetState = {
@@ -189,7 +191,7 @@ const budgetSlice = createSlice({
     
     addCustomMethod: (state, action: PayloadAction<BudgetMethod>) => {
       const existingIndex = state.availableMethods.findIndex(
-        (        method: { id: any; }) => method.id === action.payload.id
+        (method: { id: any; }) => method.id === action.payload.id
       );
       
       if (existingIndex >= 0) {
@@ -201,7 +203,7 @@ const budgetSlice = createSlice({
     
     removeCustomMethod: (state, action: PayloadAction<string>) => {
       state.availableMethods = state.availableMethods.filter(
-        (        method: { id: string; isCustom: any; }) => method.id !== action.payload || !method.isCustom
+        (method: { id: string; isCustom: any; }) => method.id !== action.payload || !method.isCustom
       );
     },
     
@@ -234,7 +236,7 @@ const budgetSlice = createSlice({
       })
       .addCase(fetchBudget.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur inconnue';
         state.isInitialized = true;
       });
 
@@ -251,7 +253,7 @@ const budgetSlice = createSlice({
       })
       .addCase(saveBudget.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur de sauvegarde';
       });
 
     // Update budget method
@@ -267,7 +269,7 @@ const budgetSlice = createSlice({
       })
       .addCase(updateBudgetMethod.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur de mise à jour';
       });
 
     // Update budget salary
@@ -283,7 +285,7 @@ const budgetSlice = createSlice({
       })
       .addCase(updateBudgetSalary.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur de mise à jour';
       });
 
     // Calculate current stats

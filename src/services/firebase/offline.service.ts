@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { FirestoreService } from './firestore.service';
 import firebaseConfig from './config';
-import { 
-  Expense, 
-  Subscription, 
-  Budget, 
-  ApiResponse 
-} from '../../types';
+
+// Imports individuels depuis les fichiers de types
+import type { Expense } from '../../types/expense.types';
+import type { Subscription } from '../../types/subscription.types';
+import type { Budget } from '../../types/budget.types';
+import type { ApiResponse } from '../../types/common.types';
+
 import { STORAGE_KEYS } from '../../utils/constants';
 
 interface OfflineAction {
@@ -26,6 +27,25 @@ interface OfflineData {
   budget: Budget | null;
   lastSync: string;
   pendingActions: OfflineAction[];
+}
+
+interface SyncActionResult {
+  action: string;
+  status: 'success' | 'failed';
+  error?: string;
+}
+
+interface SyncResult {
+  synced: number;
+  failed: number;
+  details: SyncActionResult[];
+}
+
+interface OfflineStats {
+  lastSync: string;
+  pendingActionsCount: number;
+  offlineDataSize: number;
+  isOnline: boolean;
 }
 
 export class OfflineService {
@@ -56,7 +76,7 @@ export class OfflineService {
       this.isOnline = state.isConnected ?? false;
 
       // Écouter les changements de connectivité
-      NetInfo.addEventListener(state => {
+      NetInfo.addEventListener((state) => {
         const wasOffline = !this.isOnline;
         this.isOnline = state.isConnected ?? false;
 
@@ -203,11 +223,7 @@ export class OfflineService {
   /**
    * Synchroniser les données avec le serveur
    */
-  async syncWithServer(userId: string): Promise<ApiResponse<{
-    synced: number;
-    failed: number;
-    details: Array<{ action: string; status: 'success' | 'failed'; error?: string }>;
-  }>> {
+  async syncWithServer(userId: string): Promise<ApiResponse<SyncResult>> {
     if (this.syncInProgress) {
       return {
         success: false,
@@ -228,7 +244,7 @@ export class OfflineService {
       console.log('🔄 Starting sync with server for user:', userId);
 
       const offlineData = await this.getOfflineData(userId);
-      const results = [];
+      const results: SyncActionResult[] = [];
       let synced = 0;
       let failed = 0;
 
@@ -271,7 +287,7 @@ export class OfflineService {
             synced++;
             results.push({
               action: `${action.type} ${action.collection}`,
-              status: 'success' as const,
+              status: 'success',
             });
 
             // Mettre à jour les données locales avec les vraies données du serveur
@@ -282,7 +298,7 @@ export class OfflineService {
             failed++;
             results.push({
               action: `${action.type} ${action.collection}`,
-              status: 'failed' as const,
+              status: 'failed',
               error: result.error,
             });
           }
@@ -290,7 +306,7 @@ export class OfflineService {
           failed++;
           results.push({
             action: `${action.type} ${action.collection}`,
-            status: 'failed' as const,
+            status: 'failed',
             error: (error as Error).message,
           });
         }
@@ -453,12 +469,7 @@ export class OfflineService {
   /**
    * Obtenir des statistiques sur l'utilisation hors-ligne
    */
-  async getOfflineStats(userId: string): Promise<{
-    lastSync: string;
-    pendingActionsCount: number;
-    offlineDataSize: number;
-    isOnline: boolean;
-  }> {
+  async getOfflineStats(userId: string): Promise<OfflineStats> {
     try {
       const offlineData = await this.getOfflineData(userId);
       const dataSize = JSON.stringify(offlineData).length;
@@ -483,7 +494,7 @@ export class OfflineService {
   /**
    * Forcer une synchronisation manuelle
    */
-  async forcSync(userId: string): Promise<ApiResponse<any>> {
+  async forceSync(userId: string): Promise<ApiResponse<SyncResult>> {
     console.log('🔄 Force sync requested by user');
     return await this.syncWithServer(userId);
   }

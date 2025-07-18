@@ -18,7 +18,7 @@ import { addExpense } from '../../store/slices/expensesSlice';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Theme } from '../../styles/theme';
-import { ExpenseCategory, ExpenseInput } from '../../types';
+import { ExpenseCategory, ExpenseInput } from '../../types/expense.types.ts';
 import { validateAmount, validateDescription } from '../../utils/validation';
 
 interface AddExpenseModalProps {

@@ -1,14 +1,13 @@
 // src/store/slices/settingsSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { UserSettings, LoadingState } from '../../types';
+import { UserSettings } from '../../types/user.types';
 import { AuthService } from '../../services/firebase/auth.service';
 import { APP_CONFIG, STORAGE_KEYS } from '../../utils/constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const authService = AuthService.getInstance();
 
 // Actions asynchrones
-export const loadSettings = createAsyncThunk(
+export const loadSettings = createAsyncThunk<UserSettings, void>(
   'settings/loadSettings',
   async (_, { rejectWithValue }) => {
     try {
@@ -28,9 +27,9 @@ export const loadSettings = createAsyncThunk(
   }
 );
 
-export const saveSettings = createAsyncThunk(
+export const saveSettings = createAsyncThunk<UserSettings, Partial<UserSettings>>(
   'settings/saveSettings',
-  async (settings: Partial<UserSettings>, { getState, rejectWithValue }) => {
+  async (settings, { getState, rejectWithValue }) => {
     try {
       const state = getState() as any;
       const currentSettings = state.settings.settings;
@@ -52,7 +51,7 @@ export const saveSettings = createAsyncThunk(
   }
 );
 
-export const resetSettings = createAsyncThunk(
+export const resetSettings = createAsyncThunk<UserSettings, void>(
   'settings/resetSettings',
   async (_, { rejectWithValue }) => {
     try {
@@ -74,41 +73,41 @@ export const resetSettings = createAsyncThunk(
   }
 );
 
-export const updateTheme = createAsyncThunk(
+export const updateTheme = createAsyncThunk<boolean, boolean>(
   'settings/updateTheme',
-  async (darkMode: boolean, { dispatch }) => {
+  async (darkMode, { dispatch }) => {
     await dispatch(saveSettings({ darkMode }));
     return darkMode;
   }
 );
 
-export const updateLanguage = createAsyncThunk(
+export const updateLanguage = createAsyncThunk<'fr' | 'en', 'fr' | 'en'>(
   'settings/updateLanguage',
-  async (language: 'fr' | 'en', { dispatch }) => {
+  async (language, { dispatch }) => {
     await dispatch(saveSettings({ language }));
     return language;
   }
 );
 
-export const updateCurrency = createAsyncThunk(
+export const updateCurrency = createAsyncThunk<'EUR' | 'USD' | 'GBP', 'EUR' | 'USD' | 'GBP'>(
   'settings/updateCurrency',
-  async (currency: 'EUR' | 'USD' | 'GBP', { dispatch }) => {
+  async (currency, { dispatch }) => {
     await dispatch(saveSettings({ currency }));
     return currency;
   }
 );
 
-export const updateNotifications = createAsyncThunk(
+export const updateNotifications = createAsyncThunk<boolean, boolean>(
   'settings/updateNotifications',
-  async (notifications: boolean, { dispatch }) => {
+  async (notifications, { dispatch }) => {
     await dispatch(saveSettings({ notifications }));
     return notifications;
   }
 );
 
-export const updateBudgetMethod = createAsyncThunk(
+export const updateBudgetMethod = createAsyncThunk<string, string>(
   'settings/updateBudgetMethod',
-  async (budgetMethod: string, { dispatch }) => {
+  async (budgetMethod, { dispatch }) => {
     await dispatch(saveSettings({ budgetMethod }));
     return budgetMethod;
   }
@@ -125,7 +124,8 @@ const getDefaultSettings = (): UserSettings => ({
 
 const loadLocalSettings = async (): Promise<UserSettings> => {
   try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEYS.theme);
+    // Utiliser localStorage pour le web au lieu d'AsyncStorage
+    const stored = localStorage.getItem(STORAGE_KEYS.theme);
     if (stored) {
       return JSON.parse(stored);
     }
@@ -137,16 +137,19 @@ const loadLocalSettings = async (): Promise<UserSettings> => {
 
 const saveLocalSettings = async (settings: UserSettings): Promise<void> => {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.theme, JSON.stringify(settings));
+    // Utiliser localStorage pour le web au lieu d'AsyncStorage
+    localStorage.setItem(STORAGE_KEYS.theme, JSON.stringify(settings));
   } catch (error) {
     console.warn('Failed to save local settings:', error);
   }
 };
 
-interface SettingsState extends LoadingState {
+interface SettingsState {
   settings: UserSettings;
   isInitialized: boolean;
   hasUnsavedChanges: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const initialState: SettingsState = {
@@ -211,7 +214,7 @@ const settingsSlice = createSlice({
       })
       .addCase(loadSettings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur lors du chargement';
         state.isInitialized = true;
       });
 
@@ -228,17 +231,23 @@ const settingsSlice = createSlice({
       })
       .addCase(saveSettings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        state.error = action.payload as string || 'Erreur lors de la sauvegarde';
       });
 
     // Reset settings
     builder
+      .addCase(resetSettings.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
       .addCase(resetSettings.fulfilled, (state, action) => {
+        state.isLoading = false;
         state.settings = action.payload;
         state.hasUnsavedChanges = false;
       })
       .addCase(resetSettings.rejected, (state, action) => {
-        state.error = action.payload as string;
+        state.isLoading = false;
+        state.error = action.payload as string || 'Erreur lors de la réinitialisation';
       });
 
     // Update theme

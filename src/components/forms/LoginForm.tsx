@@ -7,11 +7,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Theme } from '../../styles/theme';
-import { LoginCredentials } from '../../types';
+import { LoginCredentials } from '../../types/auth.types';
 import { validateEmail } from '../../utils/validation';
 
 interface LoginFormProps {

@@ -10,11 +10,8 @@ import {
   setUser 
 } from '../store/slices/authSlice';
 import { AuthService } from '../services/firebase/auth.service';
-import { 
-  LoginCredentials, 
-  RegisterCredentials, 
-  User 
-} from '../types';
+import { LoginCredentials, RegisterCredentials } from '../types/auth.types';
+import { User } from '../types/user.types';
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
@@ -112,7 +109,7 @@ export const useAuth = () => {
   /**
    * Vérifier si l'utilisateur est authentifié
    */
-  const isAuthenticated = useCallback(() => {
+  const checkIsAuthenticated = useCallback(() => {
     return authState.isAuthenticated && !!authState.user;
   }, [authState.isAuthenticated, authState.user]);
 
@@ -211,8 +208,8 @@ export const useAuth = () => {
   const hasPermission = useCallback((permission: string) => {
     // Pour l'instant, tous les utilisateurs ont toutes les permissions
     // Cette logique peut être étendue selon les besoins
-    return isAuthenticated();
-  }, [isAuthenticated]);
+    return checkIsAuthenticated();
+  }, [checkIsAuthenticated]);
 
   /**
    * Obtenir les statistiques utilisateur
@@ -260,7 +257,7 @@ export const useAuth = () => {
     getCurrentUser,
     getProfileInfo,
     getUserStats,
-    isAuthenticated: isAuthenticated(),
+    checkIsAuthenticated,
     hasPermission,
   };
 };

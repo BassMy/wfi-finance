@@ -28,7 +28,7 @@ import {
   SubscriptionPeriod, 
   SubscriptionCategory,
   ExpenseCategory 
-} from '../../types';
+} from '../../types/subscription.types';
 import { formatCurrency, formatSubscriptionPeriod } from '../../utils/formatting';
 import { validateAmount, validateDescription } from '../../utils/validation';
 import { SUBSCRIPTION_CATEGORIES } from '../../utils/constants';

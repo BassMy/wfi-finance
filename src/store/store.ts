@@ -3,7 +3,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import authSlice from './slices/authSlice';
 import expensesSlice from './slices/expensesSlice';
 import subscriptionsSlice from './slices/subscriptionsSlice';
-import budgetSlice from './slices/budgetSlice';
+import budgetSlice from './slices/budgetSlices';
 import settingsSlice from './slices/settingsSlice';
 
 export const store = configureStore({

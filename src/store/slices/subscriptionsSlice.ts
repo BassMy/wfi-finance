@@ -78,6 +78,8 @@ const calculateNextBillDate = (startDate: string, period: string): string => {
 };
 
 interface SubscriptionsState extends LoadingState {
+  error: any;
+  isLoading: any;
   subscriptions: Subscription[];
   monthlyTotal: number;
   yearlyTotal: number;

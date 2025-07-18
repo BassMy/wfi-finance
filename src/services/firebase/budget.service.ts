@@ -1,12 +1,11 @@
 // src/services/firebase/budget.service.ts
 import { FirestoreService } from './firestore.service';
 import firebaseConfig from './config';
-import { 
-  Budget, 
-  BudgetMethod, 
-  BudgetStats, 
-  ApiResponse 
-} from '../../types';
+
+// Imports corrigés depuis les fichiers individuels
+import type { Budget, BudgetMethod, BudgetStats } from '../../types/budget.types';
+import type { ApiResponse } from '../../types/common.types';
+
 import { 
   calculateBudgetAllocations, 
   calculateBudgetStats,

@@ -1,15 +1,17 @@
 // src/services/firebase/firestore.service.ts
 import firebaseConfig from './config';
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-import { 
-  User, 
-  Expense, 
-  Subscription, 
-  Budget, 
+
+// Imports individuels depuis les fichiers de types
+import type { User } from '../../types/user.types';
+import type { Expense } from '../../types/expense.types';
+import type { Subscription } from '../../types/subscription.types';
+import type { Budget } from '../../types/budget.types';
+import type { 
   ApiResponse, 
   PaginationParams,
   DateRange 
-} from '../../types';
+} from '../../types/common.types';
 
 export class FirestoreService {
   private static instance: FirestoreService;

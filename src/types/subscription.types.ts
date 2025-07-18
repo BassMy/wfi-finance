@@ -30,3 +30,5 @@ export interface SubscriptionInput {
   description?: string;
   startDate?: string;
 }
+
+export type { ExpenseCategory };

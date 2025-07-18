@@ -1,329 +1,514 @@
-// src/forms/registerForms.tsx
-
+// src/components/forms/RegisterForm.tsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { FormService, FormState } from '../services/forms';
+import { Input } from '../common/Input';
+import { Button } from '../common/Button';
+import { Theme } from '../../styles/theme';
+import { RegisterCredentials } from '../../types/auth.types';
+import { validateEmail } from '../../utils/validation';
 
 interface RegisterFormProps {
-  onSubmit: (userData: any) => void;
-  isLoading?: boolean;
+  onSubmit: (userData: RegisterCredentials) => Promise<boolean>;
+  onLogin: () => void;
+  theme: Theme;
+  loading?: boolean;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, isLoading = false }) => {
-  const [formState, setFormState] = useState<FormState>({
-    firstName: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('Le prénom est requis'),
-        { minLength: 2, message: 'Le prénom doit faire au moins 2 caractères' },
-      ],
-    },
-    lastName: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('Le nom est requis'),
-        { minLength: 2, message: 'Le nom doit faire au moins 2 caractères' },
-      ],
-    },
-    email: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('L\'email est requis'),
-        FormService.commonRules.email(),
-      ],
-    },
-    password: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('Le mot de passe est requis'),
-        { minLength: 8, message: 'Le mot de passe doit faire au moins 8 caractères' },
-        {
-          pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-          message: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre',
-        },
-      ],
-    },
-    confirmPassword: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('Confirmez votre mot de passe'),
-        {
-          custom: (value) => value === formState.password?.value,
-          message: 'Les mots de passe ne correspondent pas',
-        },
-      ],
-    },
-    phone: {
-      value: '',
-      touched: false,
-      rules: [
-        {
-          pattern: /^(\+33|0)[1-9](\d{8})$/,
-          message: 'Format de téléphone invalide',
-        },
-      ],
-    },
-    company: {
-      value: '',
-      touched: false,
-      rules: [],
-    },
-    profession: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('La profession est requise'),
-      ],
-    },
+export const RegisterForm: React.FC<RegisterFormProps> = ({
+  onSubmit,
+  onLogin,
+  theme,
+  loading = false,
+}) => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    company: '',
+    profession: '',
   });
 
-  const updateField = (fieldName: string, value: string) => {
-    setFormState(prev => FormService.updateField(prev, fieldName, value));
+  const [errors, setErrors] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    profession: '',
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const styles = createRegisterFormStyles(theme);
+
+  const validateForm = () => {
+    const newErrors = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      phone: '',
+      profession: '',
+    };
+    let isValid = true;
+
+    // Validation prénom
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'Le prénom est requis';
+      isValid = false;
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = 'Le prénom doit faire au moins 2 caractères';
+      isValid = false;
+    }
+
+    // Validation nom
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Le nom est requis';
+      isValid = false;
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = 'Le nom doit faire au moins 2 caractères';
+      isValid = false;
+    }
+
+    // Validation email
+    if (!formData.email.trim()) {
+      newErrors.email = 'L\'email est requis';
+      isValid = false;
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Format email invalide';
+      isValid = false;
+    }
+
+    // Validation mot de passe
+    if (!formData.password) {
+      newErrors.password = 'Le mot de passe est requis';
+      isValid = false;
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Le mot de passe doit faire au moins 8 caractères';
+      isValid = false;
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre';
+      isValid = false;
+    }
+
+    // Validation confirmation mot de passe
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Confirmez votre mot de passe';
+      isValid = false;
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+      isValid = false;
+    }
+
+    // Validation téléphone (optionnel)
+    if (formData.phone && !/^(\+33|0)[1-9](\d{8})$/.test(formData.phone)) {
+      newErrors.phone = 'Format de téléphone invalide';
+      isValid = false;
+    }
+
+    // Validation profession
+    if (!formData.profession.trim()) {
+      newErrors.profession = 'La profession est requise';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
   };
 
-  const handleBlur = (fieldName: string) => {
-    setFormState(prev => FormService.touchField(prev, fieldName));
-  };
-
-  const handleSubmit = () => {
-    const { isValid, errors } = FormService.validateForm(formState);
-    
-    if (!isValid) {
-      // Marquer tous les champs comme touchés pour afficher les erreurs
-      const touchedState = { ...formState };
-      Object.keys(touchedState).forEach(key => {
-        touchedState[key] = { ...touchedState[key], touched: true, error: errors[key] };
-      });
-      setFormState(touchedState);
-      
+  const handleSubmit = async () => {
+    if (!validateForm()) {
       Alert.alert('Erreur', 'Veuillez corriger les erreurs dans le formulaire');
       return;
     }
 
-    const values = FormService.getFormValues(formState);
-    onSubmit(values);
+    setIsSubmitting(true);
+
+    try {
+      const userData: RegisterCredentials = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      };
+
+      const success = await onSubmit(userData);
+      
+      if (success) {
+        // Réinitialiser le formulaire après succès
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          phone: '',
+          company: '',
+          profession: '',
+        });
+        setErrors({
+          firstName: '',
+          lastName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          phone: '',
+          profession: '',
+        });
+      }
+    } catch (error) {
+      Alert.alert('Erreur', 'Une erreur inattendue s\'est produite');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const renderInput = (
-    fieldName: string,
-    placeholder: string,
-    secureTextEntry: boolean = false,
-    keyboardType: any = 'default'
-  ) => {
-    const field = formState[fieldName];
-    const hasError = field.touched && field.error;
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Effacer l'erreur du champ modifié
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
 
-    return (
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={[styles.input, hasError && styles.inputError]}
-          placeholder={placeholder}
-          value={field.value}
-          onChangeText={(value) => updateField(fieldName, value)}
-          onBlur={() => handleBlur(fieldName)}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize={secureTextEntry ? 'none' : 'words'}
-        />
-        {hasError && <Text style={styles.errorText}>{field.error}</Text>}
-      </View>
-    );
+  const getPasswordStrength = () => {
+    const password = formData.password;
+    if (!password) return { strength: 0, label: '', color: theme.colors.textTertiary };
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+
+    if (score <= 2) return { strength: score, label: 'Faible', color: theme.colors.danger };
+    if (score <= 3) return { strength: score, label: 'Moyen', color: theme.colors.warning };
+    return { strength: score, label: 'Fort', color: theme.colors.success };
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.form}>
-        <Text style={styles.title}>Inscription</Text>
-        
-        {renderInput('firstName', 'Prénom *')}
-        {renderInput('lastName', 'Nom *')}
-        {renderInput('email', 'Email *', false, 'email-address')}
-        {renderInput('password', 'Mot de passe *', true)}
-        {renderInput('confirmPassword', 'Confirmer le mot de passe *', true)}
-        {renderInput('phone', 'Téléphone', false, 'phone-pad')}
-        {renderInput('company', 'Entreprise (optionnel)')}
-        {renderInput('profession', 'Profession *')}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.form}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>🎯 Inscription</Text>
+            <Text style={styles.subtitle}>
+              Créez votre compte Work for It
+            </Text>
+          </View>
 
-        <TouchableOpacity
-          style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={isLoading}
-        >
-          <Text style={styles.submitButtonText}>
-            {isLoading ? 'Inscription...' : 'S\'inscrire'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          {/* Informations personnelles */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>👤 Informations personnelles</Text>
+            
+            <View style={styles.row}>
+              <View style={styles.halfInput}>
+                <Input
+                  label="Prénom *"
+                  value={formData.firstName}
+                  onChangeText={(value) => handleInputChange('firstName', value)}
+                  placeholder="Votre prénom"
+                  autoCapitalize="words"
+                  leftIcon="👤"
+                  error={errors.firstName}
+                  theme={theme}
+                />
+              </View>
+              <View style={styles.halfInput}>
+                <Input
+                  label="Nom *"
+                  value={formData.lastName}
+                  onChangeText={(value) => handleInputChange('lastName', value)}
+                  placeholder="Votre nom"
+                  autoCapitalize="words"
+                  leftIcon="👤"
+                  error={errors.lastName}
+                  theme={theme}
+                />
+              </View>
+            </View>
+
+            <Input
+              label="Adresse email *"
+              value={formData.email}
+              onChangeText={(value) => handleInputChange('email', value)}
+              placeholder="votre@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              leftIcon="📧"
+              error={errors.email}
+              theme={theme}
+            />
+          </View>
+
+          {/* Sécurité */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔒 Sécurité</Text>
+            
+            <Input
+              label="Mot de passe *"
+              value={formData.password}
+              onChangeText={(value) => handleInputChange('password', value)}
+              placeholder="••••••••"
+              secureTextEntry={!showPassword}
+              autoComplete="new-password"
+              leftIcon="🔒"
+              rightIcon={showPassword ? "👁️" : "👁️‍🗨️"}
+              error={errors.password}
+              theme={theme}
+              onRightIconPress={() => setShowPassword(!showPassword)}
+            />
+
+            {/* Indicateur de force du mot de passe */}
+            {formData.password && (
+              <View style={styles.passwordStrength}>
+                <View style={styles.strengthBar}>
+                  <View 
+                    style={[
+                      styles.strengthFill,
+                      { 
+                        width: `${(getPasswordStrength().strength / 5) * 100}%`,
+                        backgroundColor: getPasswordStrength().color 
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.strengthLabel, { color: getPasswordStrength().color }]}>
+                  {getPasswordStrength().label}
+                </Text>
+              </View>
+            )}
+
+            <Input
+              label="Confirmer le mot de passe *"
+              value={formData.confirmPassword}
+              onChangeText={(value) => handleInputChange('confirmPassword', value)}
+              placeholder="••••••••"
+              secureTextEntry={!showConfirmPassword}
+              autoComplete="new-password"
+              leftIcon="🔒"
+              rightIcon={showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+              error={errors.confirmPassword}
+              theme={theme}
+              onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
+            />
+          </View>
+
+          {/* Informations professionnelles */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💼 Informations professionnelles</Text>
+            
+            <Input
+              label="Profession *"
+              value={formData.profession}
+              onChangeText={(value) => handleInputChange('profession', value)}
+              placeholder="Ex: Développeur, Manager..."
+              autoCapitalize="words"
+              leftIcon="💼"
+              error={errors.profession}
+              theme={theme}
+            />
+
+            <Input
+              label="Entreprise (optionnel)"
+              value={formData.company}
+              onChangeText={(value) => handleInputChange('company', value)}
+              placeholder="Nom de votre entreprise"
+              autoCapitalize="words"
+              leftIcon="🏢"
+              theme={theme}
+            />
+
+            <Input
+              label="Téléphone (optionnel)"
+              value={formData.phone}
+              onChangeText={(value) => handleInputChange('phone', value)}
+              placeholder="06 12 34 56 78"
+              keyboardType="phone-pad"
+              leftIcon="📱"
+              error={errors.phone}
+              theme={theme}
+            />
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <Button
+              title="Créer mon compte"
+              onPress={handleSubmit}
+              loading={isSubmitting || loading}
+              disabled={isSubmitting || loading}
+              fullWidth
+              theme={theme}
+              style={styles.submitButton}
+            />
+
+            <View style={styles.loginLink}>
+              <Text style={styles.loginText}>Déjà un compte ? </Text>
+              <Button
+                title="Se connecter"
+                onPress={onLogin}
+                variant="secondary"
+                size="small"
+                theme={theme}
+                disabled={isSubmitting || loading}
+              />
+            </View>
+          </View>
+
+          {/* Aide */}
+          <View style={styles.helpSection}>
+            <Text style={styles.helpTitle}>💡 Conseils</Text>
+            <Text style={styles.helpText}>
+              • Utilisez un mot de passe fort avec majuscules, minuscules et chiffres{'\n'}
+              • Votre email servira d'identifiant de connexion{'\n'}
+              • Toutes les informations peuvent être modifiées plus tard
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
-export const LoginForm: React.FC<{
-  onSubmit: (credentials: { email: string; password: string }) => void;
-  isLoading?: boolean;
-}> = ({ onSubmit, isLoading = false }) => {
-  const [formState, setFormState] = useState<FormState>({
-    email: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('L\'email est requis'),
-        FormService.commonRules.email(),
-      ],
+const createRegisterFormStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
     },
-    password: {
-      value: '',
-      touched: false,
-      rules: [
-        FormService.commonRules.required('Le mot de passe est requis'),
-      ],
+    
+    scrollView: {
+      flex: 1,
+    },
+    
+    form: {
+      padding: theme.spacing.large,
+    },
+    
+    header: {
+      alignItems: 'center',
+      marginBottom: theme.spacing.xlarge,
+    },
+    
+    title: {
+      fontSize: theme.fontSizes.xlarge,
+      fontWeight: theme.fontWeights.bold,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.small,
+    },
+    
+    subtitle: {
+      fontSize: theme.fontSizes.regular,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    
+    section: {
+      marginBottom: theme.spacing.xlarge,
+    },
+    
+    sectionTitle: {
+      fontSize: theme.fontSizes.medium,
+      fontWeight: theme.fontWeights.semibold,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.medium,
+    },
+    
+    row: {
+      flexDirection: 'row',
+      gap: theme.spacing.medium,
+    },
+    
+    halfInput: {
+      flex: 1,
+    },
+    
+    passwordStrength: {
+      marginTop: theme.spacing.small,
+      marginBottom: theme.spacing.medium,
+    },
+    
+    strengthBar: {
+      height: 4,
+      backgroundColor: theme.colors.border,
+      borderRadius: 2,
+      overflow: 'hidden',
+      marginBottom: theme.spacing.tiny,
+    },
+    
+    strengthFill: {
+      height: '100%',
+      borderRadius: 2,
+    },
+    
+    strengthLabel: {
+      fontSize: theme.fontSizes.tiny,
+      fontWeight: theme.fontWeights.medium,
+    },
+    
+    actions: {
+      marginTop: theme.spacing.large,
+    },
+    
+    submitButton: {
+      marginBottom: theme.spacing.large,
+    },
+    
+    loginLink: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    
+    loginText: {
+      fontSize: theme.fontSizes.regular,
+      color: theme.colors.textSecondary,
+    },
+    
+    helpSection: {
+      backgroundColor: theme.colors.primaryLight,
+      borderRadius: theme.borderRadius.medium,
+      padding: theme.spacing.medium,
+      marginTop: theme.spacing.large,
+    },
+    
+    helpTitle: {
+      fontSize: theme.fontSizes.small,
+      fontWeight: theme.fontWeights.semibold,
+      color: theme.colors.primary,
+      marginBottom: theme.spacing.small,
+    },
+    
+    helpText: {
+      fontSize: theme.fontSizes.tiny,
+      color: theme.colors.primary,
+      lineHeight: theme.fontSizes.small,
     },
   });
-
-  const updateField = (fieldName: string, value: string) => {
-    setFormState(prev => FormService.updateField(prev, fieldName, value));
-  };
-
-  const handleBlur = (fieldName: string) => {
-    setFormState(prev => FormService.touchField(prev, fieldName));
-  };
-
-  const handleSubmit = () => {
-    const { isValid, errors } = FormService.validateForm(formState);
-    
-    if (!isValid) {
-      const touchedState = { ...formState };
-      Object.keys(touchedState).forEach(key => {
-        touchedState[key] = { ...touchedState[key], touched: true, error: errors[key] };
-      });
-      setFormState(touchedState);
-      return;
-    }
-
-    const values = FormService.getFormValues(formState);
-    onSubmit(values);
-  };
-
-  const renderInput = (
-    fieldName: string,
-    placeholder: string,
-    secureTextEntry: boolean = false,
-    keyboardType: any = 'default'
-  ) => {
-    const field = formState[fieldName];
-    const hasError = field.touched && field.error;
-
-    return (
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={[styles.input, hasError && styles.inputError]}
-          placeholder={placeholder}
-          value={field.value}
-          onChangeText={(value) => updateField(fieldName, value)}
-          onBlur={() => handleBlur(fieldName)}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize={secureTextEntry ? 'none' : 'none'}
-        />
-        {hasError && <Text style={styles.errorText}>{field.error}</Text>}
-      </View>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.form}>
-        <Text style={styles.title}>Connexion</Text>
-        
-        {renderInput('email', 'Email', false, 'email-address')}
-        {renderInput('password', 'Mot de passe', true)}
-
-        <TouchableOpacity
-          style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={isLoading}
-        >
-          <Text style={styles.submitButtonText}>
-            {isLoading ? 'Connexion...' : 'Se connecter'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  form: {
-    padding: 20,
-    margin: 16,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 30,
-    color: '#333',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  inputError: {
-    borderColor: '#e74c3c',
-  },
-  errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  submitButton: {
-    backgroundColor: '#3498db',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#bdc3c7',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});

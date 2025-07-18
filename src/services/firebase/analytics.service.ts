@@ -3,14 +3,16 @@ import { FirestoreService } from './firestore.service';
 import { BudgetService } from './budget.service';
 import { HourlyRateService } from './hourlyRate.service';
 import firebaseConfig from './config';
-import { 
-  MonthlyTrend, 
+
+// Import des types centralisés au lieu de les redéfinir localement
+import type { 
   CategoryTrend, 
-  ApiResponse,
-  Expense,
-  Subscription,
-  ExpenseCategory
-} from '../../types';
+  MonthlyTrend, 
+  ApiResponse 
+} from '../../types/analytics.types';
+import type { Expense, ExpenseCategory } from '../../types/expense.types';
+import type { Subscription } from '../../types/subscription.types';
+
 import { 
   calculateMonthlyTrends,
   calculateCategoryTrends,
@@ -50,7 +52,6 @@ export class AnalyticsService {
 
       // Récupérer toutes les dépenses
       const expensesResult = await this.firestoreService.getUserExpenses(userId, {
-        page: 1,
         limit: 2000, // Augmenter la limite pour avoir plus d'historique
       });
 
@@ -116,7 +117,6 @@ export class AnalyticsService {
       console.log('📊 Getting category trends for user:', userId);
 
       const expensesResult = await this.firestoreService.getUserExpenses(userId, {
-        page: 1,
         limit: 1000,
       });
 
@@ -196,7 +196,7 @@ export class AnalyticsService {
         monthlyTrendsResult,
         categoryTrendsResult
       ] = await Promise.all([
-        this.firestoreService.getUserExpenses(userId, { page: 1, limit: 1000 }),
+        this.firestoreService.getUserExpenses(userId, { limit: 1000 }),
         this.firestoreService.getUserSubscriptions(userId),
         this.getMonthlyTrends(userId, 12),
         this.getCategoryTrends(userId, 3)
@@ -215,13 +215,13 @@ export class AnalyticsService {
       const categoryTrends = categoryTrendsResult.data || [];
 
       // Calculer le résumé
-      const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const totalExpenses = expenses.reduce((sum: number, expense: Expense) => sum + expense.amount, 0);
       const totalSubscriptions = calculateMonthlySubscriptionCost(subscriptions) * 12;
       const averageExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
       const expenseFrequency = calculateExpenseFrequency(expenses, 30);
 
       // Calculer les catégories principales
-      const categoryTotals = expenses.reduce((acc, expense) => {
+      const categoryTotals = expenses.reduce((acc: Record<ExpenseCategory, number>, expense: Expense) => {
         acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
         return acc;
       }, {} as Record<ExpenseCategory, number>);
@@ -229,8 +229,8 @@ export class AnalyticsService {
       const topCategories = Object.entries(categoryTotals)
         .map(([category, amount]) => ({
           category: category as ExpenseCategory,
-          amount,
-          percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0,
+          amount: amount as number,
+          percentage: totalExpenses > 0 ? ((amount as number) / totalExpenses) * 100 : 0,
         }))
         .sort((a, b) => b.amount - a.amount);
 
@@ -318,10 +318,18 @@ export class AnalyticsService {
         };
       }
 
-      const trends = monthlyTrendsResult.data;
+      const trends = monthlyTrendsResult.data || []; // Correction : ajout de fallback
       
+      // Vérification que trends n'est pas undefined
+      if (!trends || trends.length === 0) {
+        return {
+          success: false,
+          error: 'Aucune donnée de tendance disponible',
+        };
+      }
+
       // Calculer l'adhérence budgétaire pour chaque mois
-      const monthlyAdherence = trends.map(trend => {
+      const monthlyAdherence = trends.map((trend: MonthlyTrend) => {
         const totalSpent = trend.expenses + trend.subscriptions;
         const budgetLimit = budget.salary / 12;
         const adherence = budgetLimit > 0 ? Math.max(0, 100 - ((totalSpent / budgetLimit) * 100)) : 0;
@@ -334,15 +342,15 @@ export class AnalyticsService {
       });
 
       const averageAdherence = monthlyAdherence.length > 0 
-        ? monthlyAdherence.reduce((sum, m) => sum + m.adherence, 0) / monthlyAdherence.length
+        ? monthlyAdherence.reduce((sum: number, m: { adherence: number }) => sum + m.adherence, 0) / monthlyAdherence.length
         : 0;
 
-      const bestMonth = monthlyAdherence.reduce((best, current) => 
+      const bestMonth = monthlyAdherence.reduce((best: { adherence: number; month: string }, current: { adherence: number; month: string }) => 
         current.adherence > best.adherence ? current : best, 
         monthlyAdherence[0] || { month: '', adherence: 0 }
       );
 
-      const worstMonth = monthlyAdherence.reduce((worst, current) => 
+      const worstMonth = monthlyAdherence.reduce((worst: { adherence: number; month: string }, current: { adherence: number; month: string }) => 
         current.adherence < worst.adherence ? current : worst,
         monthlyAdherence[0] || { month: '', adherence: 0 }
       );
@@ -427,7 +435,7 @@ export class AnalyticsService {
         };
       }
 
-      const trends = monthlyTrendsResult.data;
+      const trends = monthlyTrendsResult.data || [];
       
       if (trends.length < 3) {
         return {
@@ -438,11 +446,11 @@ export class AnalyticsService {
 
       // Calculer la moyenne mobile et la tendance
       const recentTrends = trends.slice(-6); // 6 derniers mois
-      const averageExpenses = recentTrends.reduce((sum, t) => sum + t.expenses, 0) / recentTrends.length;
-      const averageSubscriptions = recentTrends.reduce((sum, t) => sum + t.subscriptions, 0) / recentTrends.length;
+      const averageExpenses = recentTrends.reduce((sum: number, t: MonthlyTrend) => sum + t.expenses, 0) / recentTrends.length;
+      const averageSubscriptions = recentTrends.reduce((sum: number, t: MonthlyTrend) => sum + t.subscriptions, 0) / recentTrends.length;
 
       // Calculer la volatilité
-      const variance = recentTrends.reduce((sum, t) => {
+      const variance = recentTrends.reduce((sum: number, t: MonthlyTrend) => {
         const diff = t.expenses - averageExpenses;
         return sum + (diff * diff);
       }, 0) / recentTrends.length;
@@ -524,7 +532,7 @@ export class AnalyticsService {
         hourlyRateResult,
         budgetStatsResult
       ] = await Promise.all([
-        this.firestoreService.getUserExpenses(userId, { page: 1, limit: 1000 }),
+        this.firestoreService.getUserExpenses(userId, { limit: 1000 }),
         this.firestoreService.getUserSubscriptions(userId),
         this.hourlyRateService.calculateUserRealHourlyRate(userId),
         this.budgetService.calculateBudgetStatistics(userId)
@@ -559,7 +567,7 @@ export class AnalyticsService {
       // Insights basés sur les abonnements
       if (subscriptionsResult.success && subscriptionsResult.data) {
         const subscriptions = subscriptionsResult.data;
-        const inactiveCount = subscriptions.filter(s => !s.isActive).length;
+        const inactiveCount = subscriptions.filter((s: Subscription) => !s.isActive).length;
         
         if (subscriptions.length > 10) {
           insights.push({
@@ -653,7 +661,7 @@ export class AnalyticsService {
     if (monthlyTrends.length < 2) {
       return {
         lastMonth: { expenseChange: 0, subscriptionChange: 0, totalChange: 0 },
-        yearOverYear: { expenseChange: 0, trend: 'stable' as const },
+        yearOverYear: { expenseChange: 0, trend: 'stable' as 'increasing' | 'decreasing' | 'stable' },
       };
     }
 
@@ -671,7 +679,11 @@ export class AnalyticsService {
     const totalChange = expenseChange + subscriptionChange;
 
     // Comparaison année sur année (si assez de données)
-    let yearOverYear = { expenseChange: 0, trend: 'stable' as const };
+    let yearOverYear: { expenseChange: number; trend: 'increasing' | 'decreasing' | 'stable' } = { 
+      expenseChange: 0, 
+      trend: 'stable' 
+    };
+    
     if (monthlyTrends.length >= 12) {
       const yearAgo = monthlyTrends[monthlyTrends.length - 12];
       const yearlyChange = yearAgo.expenses > 0
@@ -692,9 +704,13 @@ export class AnalyticsService {
 
   private generateBudgetRecommendations(
     averageAdherence: number,
-    categoryPerformance: any[],
-    bestMonth: any,
-    worstMonth: any
+    categoryPerformance: Array<{
+      category: ExpenseCategory;
+      averageUsage: number;
+      trend: 'improving' | 'worsening' | 'stable';
+    }>,
+    bestMonth: { month: string; adherence: number },
+    worstMonth: { month: string; adherence: number }
   ): string[] {
     const recommendations: string[] = [];
 

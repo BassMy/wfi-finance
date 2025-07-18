@@ -17,7 +17,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Theme } from '../../styles/theme';
-import { Expense, ExpenseCategory, ExpenseInput } from '../../types';
+import { Expense, ExpenseCategory, ExpenseInput } from '../../types/expense.types';
 import { formatCurrency, formatDate } from '../../utils/formatting';
 import { validateAmount, validateDescription } from '../../utils/validation';
 

@@ -1,6 +1,6 @@
 // src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { User, LoginCredentials, RegisterCredentials, AuthState } from '../../types';
+import { User, LoginCredentials, RegisterCredentials, AuthState } from '../../types/auth.types';
 import { AuthService } from '../../services/firebase/auth.service';
 
 const authService = AuthService.getInstance();

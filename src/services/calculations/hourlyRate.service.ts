@@ -370,6 +370,25 @@ export class HourlyRateService {
   }
 
   /**
+   * Obtient les multiplicateurs sûrs pour un taux donné
+   */
+  private static getSafeMultipliers(rate: HourlyRate): {
+    overtime: number;
+    weekend: number;
+    holiday: number;
+    rush: number;
+  } {
+    const defaultMultipliers = this.settings.defaultMultipliers;
+    
+    return {
+      overtime: rate.multipliers?.overtime ?? defaultMultipliers.overtime,
+      weekend: rate.multipliers?.weekend ?? defaultMultipliers.weekend,
+      holiday: rate.multipliers?.holiday ?? defaultMultipliers.holiday,
+      rush: rate.multipliers?.rush ?? defaultMultipliers.rush,
+    };
+  }
+
+  /**
    * Calcule le montant pour une entrée de temps
    */
   static calculateEntryAmount(entry: TimeEntry): RateCalculation {
@@ -388,7 +407,8 @@ export class HourlyRateService {
       overtimeHours = duration - this.settings.overtimeThreshold;
     }
 
-    const multipliers = rate.multipliers || this.settings.defaultMultipliers;
+    // Utiliser les multiplicateurs sûrs
+    const multipliers = this.getSafeMultipliers(rate);
 
     // Calculs de base
     let baseAmount = baseHours * rate.baseRate;

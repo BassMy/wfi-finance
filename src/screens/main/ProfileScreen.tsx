@@ -27,6 +27,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Theme } from '../../styles/theme';
 import { formatCurrency } from '../../utils/formatting';
 import { CURRENCIES, LANGUAGES, BUDGET_METHODS } from '../../utils/constants';
+import { RootState } from '../../store/store';
 
 interface ProfileScreenProps {
   theme: Theme;
@@ -36,12 +37,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
   const dispatch = useAppDispatch();
   const { user, logout, updateProfile, deleteAccount } = useAuth();
   
-  // Redux state
-  const settings = useAppSelector(state => state.settings.settings);
-  const budget = useAppSelector(state => state.budget.budget);
-  const expenses = useAppSelector(state => state.expenses.expenses);
-  const subscriptions = useAppSelector(state => state.subscriptions.subscriptions);
-  const settingsLoading = useAppSelector(state => state.settings.isLoading);
+  // Redux state avec types explicites
+  const settings = useAppSelector((state: RootState) => state.settings.settings);
+  const budget = useAppSelector((state: RootState) => state.budget.budget);
+  const expenses = useAppSelector((state: RootState) => state.expenses.expenses);
+  const subscriptions = useAppSelector((state: RootState) => state.subscriptions.subscriptions);
+  const settingsLoading = useAppSelector((state: RootState) => state.settings.isLoading);
 
   // Local state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -53,6 +54,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
   const [showDangerZone, setShowDangerZone] = useState(false);
 
   const styles = createProfileStyles(theme);
+
+  // Handlers pour les actions Redux
+  const handleThemeChange = (value: boolean) => {
+    dispatch(updateTheme(value));
+  };
+
+  const handleNotificationsChange = (value: boolean) => {
+    dispatch(updateNotifications(value));
+  };
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -151,13 +161,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
       (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const activeSubscriptions = subscriptions.filter(sub => sub.isActive).length;
+    const totalExpenses = expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+    const activeSubscriptions = subscriptions?.filter(sub => sub.isActive).length || 0;
 
     return {
       accountAge,
       totalExpenses,
-      expenseCount: expenses.length,
+      expenseCount: expenses?.length || 0,
       activeSubscriptions,
       memberSince: new Date(user.createdAt).toLocaleDateString('fr-FR', {
         year: 'numeric',
@@ -228,13 +238,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
                 onPress={() => setShowEditProfile(false)}
                 variant="secondary"
                 theme={theme}
-                style={styles.editButton}
+                style={styles.editActionButton}
               />
               <Button
                 title="Sauvegarder"
                 onPress={handleUpdateProfile}
                 theme={theme}
-                style={styles.editButton}
+                style={styles.editActionButton}
               />
             </View>
           </View>
@@ -263,7 +273,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
         <View style={styles.statCard}>
           <Text style={styles.statIcon}>📈</Text>
           <Text style={styles.statValue}>
-            {formatCurrency(stats?.totalExpenses || 0, settings.currency, { compact: true })}
+            {formatCurrency(stats?.totalExpenses || 0, settings?.currency || 'EUR', { compact: true })}
           </Text>
           <Text style={styles.statLabel}>Total dépensé</Text>
         </View>
@@ -293,13 +303,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
             </Text>
           </View>
           <Switch
-            value={settings.darkMode}
-            onValueChange={(value) => dispatch(updateTheme(value))}
+            value={settings?.darkMode || false}
+            onValueChange={handleThemeChange}
             trackColor={{ 
               false: theme.colors.borderLight, 
               true: theme.colors.primary 
             }}
-            thumbColor={settings.darkMode ? '#FFFFFF' : theme.colors.textTertiary}
+            thumbColor={settings?.darkMode ? '#FFFFFF' : theme.colors.textTertiary}
           />
         </View>
 
@@ -307,7 +317,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Langue</Text>
             <Text style={styles.settingDescription}>
-              {LANGUAGES.find(l => l.code === settings.language)?.name || 'Français'}
+              {LANGUAGES.find(l => l.code === settings?.language)?.name || 'Français'}
             </Text>
           </View>
           <Text style={styles.settingArrow}>›</Text>
@@ -322,8 +332,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Devise</Text>
             <Text style={styles.settingDescription}>
-              {CURRENCIES.find(c => c.code === settings.currency)?.name || 'Euro'} 
-              ({CURRENCIES.find(c => c.code === settings.currency)?.symbol || '€'})
+              {CURRENCIES.find(c => c.code === settings?.currency)?.name || 'Euro'} 
+              ({CURRENCIES.find(c => c.code === settings?.currency)?.symbol || '€'})
             </Text>
           </View>
           <Text style={styles.settingArrow}>›</Text>
@@ -342,13 +352,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
             </Text>
           </View>
           <Switch
-            value={settings.notifications}
-            onValueChange={(value) => dispatch(updateNotifications(value))}
+            value={settings?.notifications || false}
+            onValueChange={handleNotificationsChange}
             trackColor={{ 
               false: theme.colors.borderLight, 
               true: theme.colors.success 
             }}
-            thumbColor={settings.notifications ? '#FFFFFF' : theme.colors.textTertiary}
+            thumbColor={settings?.notifications ? '#FFFFFF' : theme.colors.textTertiary}
           />
         </View>
       </View>
@@ -361,7 +371,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ theme }) => {
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Méthode budgétaire</Text>
             <Text style={styles.settingDescription}>
-              {BUDGET_METHODS.find(m => m.id === settings.budgetMethod)?.name || 'Non définie'}
+              {BUDGET_METHODS.find(m => m.id === settings?.budgetMethod)?.name || 'Non définie'}
             </Text>
           </View>
           <Text style={styles.settingArrow}>›</Text>
@@ -652,6 +662,10 @@ const createProfileStyles = (theme: Theme) =>
       flexDirection: 'row',
       gap: theme.spacing.medium,
       marginTop: theme.spacing.medium,
+    },
+    
+    editActionButton: {
+      flex: 1,
     },
     
     statsGrid: {

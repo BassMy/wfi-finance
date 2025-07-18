@@ -2,16 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FirestoreService } from '../services/firebase/firestore.service';
 import { useAuth } from './useAuth';
-import { 
-  Expense, 
-  Subscription, 
-  Budget, 
-  ExpenseInput, 
-  SubscriptionInput, 
-  PaginationParams,
-  DateRange,
-  ApiResponse 
-} from '../types';
+import { Expense, ExpenseInput } from '../types/expense.types';
+import { Subscription, SubscriptionInput } from '../types/subscription.types';
+import { Budget } from '../types/budget.types';
+import { PaginationParams, DateRange, ApiResponse } from '../types/common.types';
 
 interface FirestoreState<T> {
   data: T | null;
@@ -559,25 +553,33 @@ export const useFirestore = () => {
         const result = await firestoreService.getUserExpenses(user.uid);
         
         if (result.success && result.data) {
-          let filtered = result.data.filter(expense =>
+          let filtered = result.data.filter((expense: Expense) =>
             expense.description.toLowerCase().includes(query.toLowerCase())
           );
 
           if (filters) {
             if (filters.category) {
-              filtered = filtered.filter(expense => expense.category === filters.category);
+              filtered = filtered.filter((expense: Expense) => expense.category === filters.category);
             }
             if (filters.dateFrom) {
-              filtered = filtered.filter(expense => expense.date >= filters.dateFrom!);
+              const dateFromTime = new Date(filters.dateFrom).getTime();
+              filtered = filtered.filter((expense: Expense) => {
+                const expenseTime = new Date(expense.date).getTime();
+                return expenseTime >= dateFromTime;
+              });
             }
             if (filters.dateTo) {
-              filtered = filtered.filter(expense => expense.date <= filters.dateTo!);
+              const dateToTime = new Date(filters.dateTo).getTime();
+              filtered = filtered.filter((expense: Expense) => {
+                const expenseTime = new Date(expense.date).getTime();
+                return expenseTime <= dateToTime;
+              });
             }
             if (filters.minAmount !== undefined) {
-              filtered = filtered.filter(expense => expense.amount >= filters.minAmount!);
+              filtered = filtered.filter((expense: Expense) => expense.amount >= filters.minAmount!);
             }
             if (filters.maxAmount !== undefined) {
-              filtered = filtered.filter(expense => expense.amount <= filters.maxAmount!);
+              filtered = filtered.filter((expense: Expense) => expense.amount <= filters.maxAmount!);
             }
           }
 

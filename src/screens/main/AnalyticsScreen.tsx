@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchBudget } from '../../store/slices/budgetSlice';
+import { fetchBudget } from '../../store/slices/budgetSlices';
 import { fetchExpenses } from '../../store/slices/expensesSlice';
 import { fetchSubscriptions } from '../../store/slices/subscriptionsSlice';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -27,6 +27,7 @@ import {
   calculateRealHourlyRate,
   calculateMonthlySubscriptionCost
 } from '../../utils/calculations';
+import { RootState } from '../../store/store';
 
 interface AnalyticsScreenProps {
   theme: Theme;
@@ -36,13 +37,13 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
   const dispatch = useAppDispatch();
   const { user } = useAuth();
   
-  // Redux state
-  const budget = useAppSelector(state => state.budget.budget);
-  const expenses = useAppSelector(state => state.expenses.expenses);
-  const expensesTotals = useAppSelector(state => state.expenses.totals);
-  const subscriptions = useAppSelector(state => state.subscriptions.subscriptions);
-  const subscriptionsTotal = useAppSelector(state => state.subscriptions.monthlyTotal);
-  const isLoading = useAppSelector(state => state.budget.isLoading);
+  // Redux state avec types explicites
+  const budget = useAppSelector((state: RootState) => state.budget.budget);
+  const expenses = useAppSelector((state: RootState) => state.expenses.expenses);
+  const expensesTotals = useAppSelector((state: RootState) => state.expenses.totals);
+  const subscriptions = useAppSelector((state: RootState) => state.subscriptions.subscriptions);
+  const subscriptionsTotal = useAppSelector((state: RootState) => state.subscriptions.monthlyTotal);
+  const isLoading = useAppSelector((state: RootState) => state.budget.isLoading);
 
   // Local state
   const [refreshing, setRefreshing] = useState(false);
@@ -81,11 +82,11 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
 
   // Calculer les analytics
   const getAnalytics = () => {
-    if (!expenses.length) return null;
+    if (!expenses || !expenses.length) return null;
 
     const monthlyTrends = calculateMonthlyTrends(
       expenses, 
-      subscriptions, 
+      subscriptions || [], 
       selectedPeriod === '3m' ? 3 : selectedPeriod === '6m' ? 6 : 12
     );
 
@@ -98,8 +99,8 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
       const theoreticalRate = calculateTheoreticalHourlyRate(budget.salary);
       const realRate = calculateRealHourlyRate(
         theoreticalRate,
-        expensesTotals.total,
-        subscriptionsTotal,
+        expensesTotals?.total || 0,
+        subscriptionsTotal || 0,
         budget.salary
       );
       hourlyRateData = { theoretical: theoreticalRate, real: realRate };
@@ -116,14 +117,15 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
   const analytics = getAnalytics();
 
   const renderOverview = () => {
-    if (!analytics) return null;
+    if (!analytics || !expensesTotals) return null;
 
     const currentMonth = new Date().getMonth();
-    const lastMonthExpenses = expenses.filter((exp: { date: string | number | Date; }) => {
+    const lastMonthExpenses = expenses?.filter((exp: { date: string | number | Date; }) => {
       const expDate = new Date(exp.date);
       return expDate.getMonth() === currentMonth - 1;
-    });
-    const lastMonthTotal = lastMonthExpenses.reduce((sum: any, exp: { amount: any; }) => sum + exp.amount, 0);
+    }) || [];
+    
+    const lastMonthTotal = lastMonthExpenses.reduce((sum: number, exp: { amount: number; }) => sum + exp.amount, 0);
     const changeFromLastMonth = lastMonthTotal > 0 
       ? ((expensesTotals.total - lastMonthTotal) / lastMonthTotal) * 100 
       : 0;
@@ -162,11 +164,11 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>💳</Text>
             <Text style={styles.statValue}>
-              {formatCurrency(subscriptionsTotal)}
+              {formatCurrency(subscriptionsTotal || 0)}
             </Text>
             <Text style={styles.statLabel}>Abonnements/mois</Text>
             <Text style={styles.statChange}>
-              {subscriptions.filter(s => s.isActive).length} actifs
+              {subscriptions?.filter(s => s.isActive).length || 0} actifs
             </Text>
           </View>
 
@@ -512,7 +514,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
     );
   };
 
-  if (isLoading && !expenses.length) {
+  if (isLoading && (!expenses || !expenses.length)) {
     return (
       <SafeAreaView style={styles.container}>
         <LoadingSpinner 
@@ -524,7 +526,7 @@ export const AnalyticsScreen: React.FC<AnalyticsScreenProps> = ({ theme }) => {
     );
   }
 
-  if (!expenses.length) {
+  if (!expenses || !expenses.length) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>

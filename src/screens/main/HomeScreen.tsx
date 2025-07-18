@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchBudget, calculateCurrentStats } from '../../store/slices/budgetSlice';
+import { fetchBudget, calculateCurrentStats } from '../../store/slices/budgetSlices';
 import { fetchExpenses } from '../../store/slices/expensesSlice';
 import { fetchSubscriptions } from '../../store/slices/subscriptionsSlice';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';

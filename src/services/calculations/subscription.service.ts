@@ -624,7 +624,9 @@ export class SubscriptionService {
           this.userSubscription.status = 'expired';
           hasChanged = true;
           
-          await this.addEvent(this.userSubscription.id, 'payment_failed', { error: error.message });
+          // Gestion sécurisée de l'erreur unknown
+          const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+          await this.addEvent(this.userSubscription.id, 'payment_failed', { error: errorMessage });
         }
       } else {
         this.userSubscription.status = 'expired';

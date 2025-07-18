@@ -19,3 +19,5 @@ export interface AuthState {
   isAuthenticated: boolean;
   error: string | null;
 }
+
+export type { User };
