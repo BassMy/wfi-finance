@@ -1,25 +1,37 @@
 // src/store/slices/settingsSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { UserSettings } from '../../types/user.types';
-import { AuthService } from '../../services/firebase/auth.service';
-import { APP_CONFIG, STORAGE_KEYS } from '../../utils/constants';
 
-const authService = AuthService.getInstance();
+// Types simplifiés intégrés
+interface UserSettings {
+  currency: 'EUR' | 'USD' | 'GBP';
+  darkMode: boolean;
+  notifications: boolean;
+  language: 'fr' | 'en';
+  budgetMethod: string;
+}
 
-// Actions asynchrones
+// Configuration par défaut
+const APP_CONFIG = {
+  defaultCurrency: 'EUR' as const,
+  defaultLanguage: 'fr' as const,
+};
+
+// Actions asynchrones simplifiées
 export const loadSettings = createAsyncThunk<UserSettings, void>(
   'settings/loadSettings',
   async (_, { rejectWithValue }) => {
     try {
-      // Charger depuis le profil utilisateur Firebase
-      const userData = await authService.getCurrentUserData();
-      if (userData?.settings) {
-        return userData.settings;
+      // Simulation de chargement depuis le stockage local
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Essayer de charger depuis localStorage
+      const stored = localStorage.getItem('workforit_settings');
+      if (stored) {
+        return JSON.parse(stored);
       }
 
-      // Fallback: charger depuis le stockage local
-      const localSettings = await loadLocalSettings();
-      return localSettings;
+      // Paramètres par défaut
+      return getDefaultSettings();
     } catch (error) {
       console.warn('Failed to load settings:', error);
       return getDefaultSettings();
@@ -35,14 +47,11 @@ export const saveSettings = createAsyncThunk<UserSettings, Partial<UserSettings>
       const currentSettings = state.settings.settings;
       const newSettings = { ...currentSettings, ...settings };
 
-      // Sauvegarder dans le profil utilisateur Firebase
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        await authService.updateProfile({ settings: newSettings });
-      }
+      // Simulation de sauvegarde
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Sauvegarder localement aussi
-      await saveLocalSettings(newSettings);
+      // Sauvegarder dans localStorage
+      localStorage.setItem('workforit_settings', JSON.stringify(newSettings));
 
       return newSettings;
     } catch (error) {
@@ -57,14 +66,11 @@ export const resetSettings = createAsyncThunk<UserSettings, void>(
     try {
       const defaultSettings = getDefaultSettings();
 
-      // Sauvegarder dans le profil utilisateur Firebase
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        await authService.updateProfile({ settings: defaultSettings });
-      }
+      // Simulation de reset
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Sauvegarder localement
-      await saveLocalSettings(defaultSettings);
+      // Sauvegarder les paramètres par défaut
+      localStorage.setItem('workforit_settings', JSON.stringify(defaultSettings));
 
       return defaultSettings;
     } catch (error) {
@@ -73,6 +79,7 @@ export const resetSettings = createAsyncThunk<UserSettings, void>(
   }
 );
 
+// Actions rapides pour les paramètres fréquents
 export const updateTheme = createAsyncThunk<boolean, boolean>(
   'settings/updateTheme',
   async (darkMode, { dispatch }) => {
@@ -105,15 +112,7 @@ export const updateNotifications = createAsyncThunk<boolean, boolean>(
   }
 );
 
-export const updateBudgetMethod = createAsyncThunk<string, string>(
-  'settings/updateBudgetMethod',
-  async (budgetMethod, { dispatch }) => {
-    await dispatch(saveSettings({ budgetMethod }));
-    return budgetMethod;
-  }
-);
-
-// Fonctions utilitaires
+// Fonction utilitaire
 const getDefaultSettings = (): UserSettings => ({
   currency: APP_CONFIG.defaultCurrency,
   darkMode: false,
@@ -121,28 +120,6 @@ const getDefaultSettings = (): UserSettings => ({
   language: APP_CONFIG.defaultLanguage,
   budgetMethod: 'classic_50_30_20',
 });
-
-const loadLocalSettings = async (): Promise<UserSettings> => {
-  try {
-    // Utiliser localStorage pour le web au lieu d'AsyncStorage
-    const stored = localStorage.getItem(STORAGE_KEYS.theme);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.warn('Failed to load local settings:', error);
-  }
-  return getDefaultSettings();
-};
-
-const saveLocalSettings = async (settings: UserSettings): Promise<void> => {
-  try {
-    // Utiliser localStorage pour le web au lieu d'AsyncStorage
-    localStorage.setItem(STORAGE_KEYS.theme, JSON.stringify(settings));
-  } catch (error) {
-    console.warn('Failed to save local settings:', error);
-  }
-};
 
 interface SettingsState {
   settings: UserSettings;
@@ -214,7 +191,7 @@ const settingsSlice = createSlice({
       })
       .addCase(loadSettings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string || 'Erreur lors du chargement';
+        state.error = action.payload as string;
         state.isInitialized = true;
       });
 
@@ -231,7 +208,7 @@ const settingsSlice = createSlice({
       })
       .addCase(saveSettings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string || 'Erreur lors de la sauvegarde';
+        state.error = action.payload as string;
       });
 
     // Reset settings
@@ -247,7 +224,7 @@ const settingsSlice = createSlice({
       })
       .addCase(resetSettings.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string || 'Erreur lors de la réinitialisation';
+        state.error = action.payload as string;
       });
 
     // Update theme
@@ -277,13 +254,6 @@ const settingsSlice = createSlice({
         state.settings.notifications = action.payload;
         state.hasUnsavedChanges = false;
       });
-
-    // Update budget method
-    builder
-      .addCase(updateBudgetMethod.fulfilled, (state, action) => {
-        state.settings.budgetMethod = action.payload;
-        state.hasUnsavedChanges = false;
-      });
   },
 });
 
@@ -298,51 +268,3 @@ export const {
 } = settingsSlice.actions;
 
 export default settingsSlice.reducer;
-
-// Selectors
-export const selectSettings = (state: { settings: SettingsState }) => state.settings.settings;
-export const selectDarkMode = (state: { settings: SettingsState }) => state.settings.settings.darkMode;
-export const selectLanguage = (state: { settings: SettingsState }) => state.settings.settings.language;
-export const selectCurrency = (state: { settings: SettingsState }) => state.settings.settings.currency;
-export const selectNotifications = (state: { settings: SettingsState }) => state.settings.settings.notifications;
-export const selectBudgetMethod = (state: { settings: SettingsState }) => state.settings.settings.budgetMethod;
-export const selectSettingsLoading = (state: { settings: SettingsState }) => state.settings.isLoading;
-export const selectSettingsError = (state: { settings: SettingsState }) => state.settings.error;
-export const selectSettingsInitialized = (state: { settings: SettingsState }) => state.settings.isInitialized;
-export const selectHasUnsavedChanges = (state: { settings: SettingsState }) => state.settings.hasUnsavedChanges;
-
-// Computed selectors
-export const selectTheme = (state: { settings: SettingsState }) => {
-  const darkMode = selectDarkMode(state);
-  return darkMode ? 'dark' : 'light';
-};
-
-export const selectLocalization = (state: { settings: SettingsState }) => {
-  const language = selectLanguage(state);
-  const currency = selectCurrency(state);
-  
-  return {
-    language,
-    currency,
-    locale: language === 'fr' ? 'fr-FR' : 'en-US',
-    currencySymbol: currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£',
-  };
-};
-
-export const selectUserPreferences = (state: { settings: SettingsState }) => {
-  const settings = selectSettings(state);
-  
-  return {
-    appearance: {
-      darkMode: settings.darkMode,
-      language: settings.language,
-    },
-    financial: {
-      currency: settings.currency,
-      budgetMethod: settings.budgetMethod,
-    },
-    notifications: {
-      enabled: settings.notifications,
-    },
-  };
-};

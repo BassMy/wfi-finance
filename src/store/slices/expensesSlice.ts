@@ -1,20 +1,62 @@
 // src/store/slices/expensesSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Expense, ExpenseInput } from '../../types/expense.types';
-import { FirestoreService } from '../../services/firebase/firestore.service';
 
-const firestoreService = FirestoreService.getInstance();
+// Types simplifiés intégrés
+type ExpenseCategory = 'needs' | 'wants' | 'savings';
 
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: ExpenseCategory;
+  date: string;
+  createdAt?: string;
+}
+
+interface ExpenseInput {
+  description: string;
+  amount: number;
+  category: ExpenseCategory;
+  date: string;
+}
+
+// Actions asynchrones simplifiées
 export const fetchExpenses = createAsyncThunk<Expense[], string>(
   'expenses/fetchExpenses',
   async (userId: string, { rejectWithValue }) => {
     try {
-      const response = await firestoreService.getUserExpenses(userId);
-      if (response.success) {
-        return response.data || [];
-      } else {
-        return rejectWithValue(response.error || 'Erreur lors du chargement');
-      }
+      // Simulation de chargement
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Données de test
+      const mockExpenses: Expense[] = [
+        {
+          id: '1',
+          description: 'Courses alimentaires',
+          amount: 85.50,
+          category: 'needs',
+          date: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: '2',
+          description: 'Restaurant',
+          amount: 45.00,
+          category: 'wants',
+          date: new Date(Date.now() - 86400000).toISOString(),
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: '3',
+          description: 'Épargne mensuelle',
+          amount: 200.00,
+          category: 'savings',
+          date: new Date(Date.now() - 172800000).toISOString(),
+          createdAt: new Date(Date.now() - 172800000).toISOString(),
+        },
+      ];
+      
+      return mockExpenses;
     } catch (error) {
       return rejectWithValue('Erreur lors du chargement des dépenses');
     }
@@ -25,21 +67,19 @@ export const addExpense = createAsyncThunk<Expense, { userId: string; expense: E
   'expenses/addExpense',
   async ({ userId, expense }, { rejectWithValue }) => {
     try {
-      // Assurer que les champs requis sont présents
-      const expenseData = {
-        ...expense,
-        date: expense.date || new Date().toISOString(),
-        description: expense.description || '',
-        category: expense.category || 'needs',
-        amount: expense.amount || 0,
+      // Simulation d'ajout
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const newExpense: Expense = {
+        id: Date.now().toString(),
+        description: expense.description,
+        amount: expense.amount,
+        category: expense.category,
+        date: expense.date,
+        createdAt: new Date().toISOString(),
       };
-
-      const response = await firestoreService.createExpense(userId, expenseData);
-      if (response.success && response.data) {
-        return response.data;
-      } else {
-        return rejectWithValue(response.error || 'Erreur lors de l\'ajout');
-      }
+      
+      return newExpense;
     } catch (error) {
       return rejectWithValue('Erreur lors de l\'ajout de la dépense');
     }
@@ -50,12 +90,9 @@ export const deleteExpense = createAsyncThunk<string, { expenseId: string; userI
   'expenses/deleteExpense',
   async ({ expenseId, userId }, { rejectWithValue }) => {
     try {
-      const response = await firestoreService.deleteExpense(expenseId, userId);
-      if (response.success) {
-        return expenseId;
-      } else {
-        return rejectWithValue(response.error || 'Erreur lors de la suppression');
-      }
+      // Simulation de suppression
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return expenseId;
     } catch (error) {
       return rejectWithValue('Erreur lors de la suppression de la dépense');
     }
@@ -137,7 +174,7 @@ const expensesSlice = createSlice({
       })
       .addCase(fetchExpenses.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string || 'Erreur lors du chargement';
+        state.error = action.payload as string;
       });
 
     // Add expense
@@ -150,7 +187,7 @@ const expensesSlice = createSlice({
         state.totals = calculateTotals(state.expenses);
       })
       .addCase(addExpense.rejected, (state, action) => {
-        state.error = action.payload as string || 'Erreur lors de l\'ajout';
+        state.error = action.payload as string;
       });
 
     // Delete expense
@@ -163,41 +200,10 @@ const expensesSlice = createSlice({
         state.totals = calculateTotals(state.expenses);
       })
       .addCase(deleteExpense.rejected, (state, action) => {
-        state.error = action.payload as string || 'Erreur lors de la suppression';
+        state.error = action.payload as string;
       });
   },
 });
 
 export const { clearExpenses, setExpenses, clearError } = expensesSlice.actions;
 export default expensesSlice.reducer;
-
-// Selectors
-export const selectExpenses = (state: { expenses: ExpensesState }) => state.expenses.expenses;
-export const selectExpensesTotals = (state: { expenses: ExpensesState }) => state.expenses.totals;
-export const selectExpensesLoading = (state: { expenses: ExpensesState }) => state.expenses.isLoading;
-export const selectExpensesError = (state: { expenses: ExpensesState }) => state.expenses.error;
-
-// Computed selectors
-export const selectExpensesByCategory = (state: { expenses: ExpensesState }) => {
-  const expenses = selectExpenses(state);
-  return {
-    needs: expenses.filter(expense => expense.category === 'needs'),
-    wants: expenses.filter(expense => expense.category === 'wants'),
-    savings: expenses.filter(expense => expense.category === 'savings'),
-  };
-};
-
-export const selectRecentExpenses = (state: { expenses: ExpensesState }, limit: number = 10) => {
-  const expenses = selectExpenses(state);
-  return expenses
-    .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())
-    .slice(0, limit);
-};
-
-export const selectExpensesByDateRange = (state: { expenses: ExpensesState }, startDate: string, endDate: string) => {
-  const expenses = selectExpenses(state);
-  return expenses.filter(expense => {
-    const expenseDate = new Date(expense.date);
-    return expenseDate >= new Date(startDate) && expenseDate <= new Date(endDate);
-  });
-};
